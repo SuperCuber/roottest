@@ -1,3 +1,6 @@
+This readme optimistically describes functionality that does not yet exist. Check code, issues, and releases for actually implemented behavior.
+
+---
 Roottest is a tool for unit-testing a program that accesses the filesystem using a fakechroot.
 
 ## Test structure
