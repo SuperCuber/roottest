@@ -18,6 +18,8 @@ Each unit test is represented as a folder, containing those files:
   The contents of this file will be fed into the program's stdin
 - `expected.stderr, expected.stdout`\
   The output of the program will be compared against the contents of these files
+- `environment.toml`\
+  Contains the environment variables that the program will have.
 
 Roottest will take each argument as the path to such a folder, and run the test in the folder according to the description above.
 
@@ -30,5 +32,5 @@ See `cargo-roottest`
 - Have a symbolic link in each `root` folder pointing to your executable so that it it accessible from within the chroot.
 - Run your program using `/program` in Roottest.toml
 
-## Depdendencies
+## Dependencies
 Roottest is only supported on Linux, and depends on the `fakechroot` package. Check your distribution for installation.
