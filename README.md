@@ -1,7 +1,6 @@
 Roottest is a tool for unit-testing a program that accesses the filesystem using a fakechroot.
 
-## Usage
-
+## Test structure
 Each unit test is represented as a folder, containing those files:
 - Roottest.toml
   Contains the parameters for running the program inside the chroot.
@@ -13,11 +12,20 @@ Each unit test is represented as a folder, containing those files:
 - home_after/
   After running the command, the contents of the potentially modified home directory inside the chroot will be compared to this directory
 - input.stdin
-  The contents of this file will be piped into the program
+  The contents of this file will be fed into the program's stdin
 - expected.stderr, expected.stdout
   The output of the program will be compared against the contents of these files
 
-The tool will go through every folder in the `roottest` directory and execute the test.
+Roottest will take each argument as the path to such a folder, and run the test in the folder according to the description above.
+
+## Using with a build system
+### Cargo
+See `cargo-roottest`
+
+### Make & similar
+- Make sure your "test" target depends on your executable so that it gets recompiled whenever you want to test.
+- Have a symbolic link in each `root` folder pointing to your executable so that it it accessible from within the chroot.
+- Run your program using `/program` in Roottest.toml
 
 ## Depdendencies
-Roottest depends on the `fakechroot` package on Linux. Check your distribution for installation.
+Roottest is only supported on Linux, and depends on the `fakechroot` package. Check your distribution for installation.
