@@ -9,6 +9,7 @@ extern crate structopt;
 extern crate toml;
 
 mod args;
+mod results;
 mod tests;
 
 use anyhow::{Context, Result};

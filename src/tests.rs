@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
+use crate::results::{HomeDirectory, TestFieldComparison};
+
 use anyhow::{Context, Result};
 
 #[derive(Debug, Deserialize)]
@@ -32,16 +34,6 @@ pub struct RootTestResult {
     pub home: TestFieldComparison<HomeDirectory, HomeDirectory>
 }
 
-#[derive(Debug)]
-pub enum TestFieldComparison<L, R> {
-    Identical,
-    Differs(L, R)
-}
-
-#[derive(Debug)]
-pub struct HomeDirectory {
-}
-
 impl RootTest {
     pub fn from_dir(dir: &Path) -> Result<RootTest> {
         debug!("Loading test from {:?}", dir);
@@ -59,7 +51,7 @@ impl RootTest {
         let stderr = std::fs::read(dir.join("expected.stderr")).context("load stderr")?;
         trace!("Stderr: {:#?}", stderr);
 
-        let environment: BTreeMap<String, String> = toml::from_str(
+        let environment = toml::from_str(
             &read_to_string(dir.join("environment.toml")).context("read environment.toml")?,
         )
         .context("parse environment.toml")?;
