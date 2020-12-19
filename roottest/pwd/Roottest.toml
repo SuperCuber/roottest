@@ -1,2 +1,3 @@
 cd = "/home/user"
 run = "pwd"
+expected_status = 0
