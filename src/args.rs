@@ -8,14 +8,22 @@ pub(crate) struct Opt {
     #[structopt(short, long = "verbose", parse(from_occurrences))]
     pub verbosity: usize,
 
-    #[structopt()]
+    /// Run every folder in this directory as a test
+    #[structopt(short, long)]
+    pub recurse: Option<PathBuf>,
+
+    /// A list of test folders
     pub tests: Vec<PathBuf>,
 }
 
-pub(crate) fn get_args() -> Opt {
+pub(crate) fn get_args() -> anyhow::Result<Opt> {
     let mut opt = Opt::from_args();
     opt.verbosity = std::cmp::min(opt.verbosity, 3);
-    opt
+    init_logger(&opt);
+    if opt.recurse.is_some() && !opt.tests.is_empty() {
+        bail!("cannot specify tests if --recurse is given");
+    }
+    Ok(opt)
 }
 
 pub(crate) fn init_logger(opt: &Opt) {

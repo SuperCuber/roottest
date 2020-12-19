@@ -1,3 +1,4 @@
+#[macro_use]
 extern crate anyhow;
 #[macro_use]
 extern crate log;
@@ -23,16 +24,22 @@ fn main() {
 }
 
 fn run() -> Result<()> {
-    let mut opt = args::get_args();
-    opt.verbosity = 3; // for now
-    args::init_logger(&opt);
-
+    let opt = args::get_args().context("parse arguments")?;
     trace!("Options: {:#?}", opt);
 
-    let mut tests = Vec::with_capacity(opt.tests.len());
-    for test_dir in &opt.tests {
+    let test_dirs = if let Some(recurse) = opt.recurse {
+        std::fs::read_dir(&recurse)
+            .with_context(|| format!("recurse into {:?}", recurse))?
+            .flat_map(|entry| entry.map(|entry| entry.path()))
+            .collect()
+    } else {
+        opt.tests
+    };
+
+    let mut tests = Vec::with_capacity(test_dirs.len());
+    for test_dir in test_dirs {
         tests.push(
-            tests::RootTest::from_dir(test_dir)
+            tests::RootTest::from_dir(&test_dir)
                 .with_context(|| format!("load test from {:?}", test_dir))?,
         );
     }
