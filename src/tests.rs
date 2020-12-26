@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 #[derive(Debug, Deserialize)]
 pub struct RootTestParams {
     cd: PathBuf,
-    run: String,
+    run: Option<String>,
     expected_status: i32,
 }
 
@@ -43,6 +43,10 @@ impl RootTest {
         )
         .context("parse roottest.toml")?;
         trace!("Params: {:#?}", params);
+
+        if params.run.is_none() {
+            todo!("read run.sh");
+        }
 
         let stdin = std::fs::read(dir.join("input.stdin")).context("load stdin")?;
         trace!("Stdin: {:#?}", stdin);
