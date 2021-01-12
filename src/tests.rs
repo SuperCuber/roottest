@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 #[derive(Debug, Deserialize)]
 pub struct RootTestParams {
     cd: PathBuf,
-    run: Option<String>,
+    run: String,
     expected_status: i32,
 }
 
@@ -23,6 +23,7 @@ pub struct RootTest {
     environment: BTreeMap<String, String>,
     // Directories
     root_before: PathBuf,
+    root: PathBuf,
     root_after: PathBuf,
 }
 
@@ -35,10 +36,6 @@ impl RootTest {
         )
         .context("parse roottest.toml")?;
         trace!("Params: {:#?}", params);
-
-        if params.run.is_none() {
-            todo!("read run.sh");
-        }
 
         let stdin = std::fs::read(dir.join("input.stdin")).context("load stdin")?;
         trace!("Stdin: {:#?}", stdin);
@@ -65,12 +62,49 @@ impl RootTest {
             expected_stderr,
             environment,
             root_before: dir.join("root_before"),
+            root: dir.join("root"),
             root_after: dir.join("root_after"),
         })
     }
 
     pub fn run(&self) -> Result<RootTestResult> {
-        debug!("Running test {}", self.name);
+        if log_enabled!(log::Level::Debug) {
+            // newline after the 3 dots
+            println!();
+        }
+
+        debug!(
+            "Cleaning up previous root at {:?} if it exists...",
+            self.root
+        );
+        let _ = std::fs::remove_dir_all(&self.root);
+
+        debug!("Copying {:?} to {:?}...", self.root_before, self.root);
+        let cp_success = std::process::Command::new("cp")
+            .arg("-r")
+            .arg(&self.root_before)
+            .arg(&self.root)
+            .output()
+            .context("run cp self.root_before self.root")?
+            .status
+            .success();
+        ensure!(
+            cp_success,
+            "failed to run cp -r {:?} {:?}",
+            self.root_before,
+            self.root
+        );
+
+        debug!("Launching chrooted process");
+        let process_status = std::process::Command::new("fakechroot")
+            .arg("chroot")
+            .arg(&self.root)
+            .arg("sh")
+            .arg("-c")
+            .arg(format!("cd {:?} && {}", self.params.cd, self.params.run))
+            .output()
+            .context("run test command in chroot")?;
+        dbg!(process_status);
 
         Ok(RootTestResult::Ok)
     }
