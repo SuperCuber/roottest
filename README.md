@@ -7,13 +7,10 @@ Roottest is a tool for unit-testing a program that accesses the filesystem using
 Each unit test is represented as a folder, containing those files:
 - `Roottest.toml`\
   Contains the parameters for running the program inside the chroot.
-- `root/`\
-  This folder contains a root environment for the program to run in.
-  It does not include a home folder.
-- `home_before/`\
-  This folder will be copied into the `root/` folder to `/home/user`
-- `home_after/`\
-  After running the command, the contents of the potentially modified home directory inside the chroot will be compared to this directory
+- `root_before/`\
+  This folder will be copied over, then Roottest will chroot into it and run the command specified in `Roottest.toml` inside the chroot.
+- `root_after/`\
+  After running the command, the contents of the potentially modified chroot will be compared to this directory
 - `input.stdin`\
   The contents of this file will be fed into the program's stdin
 - `expected.stderr, expected.stdout`\
