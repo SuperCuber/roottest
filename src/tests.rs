@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
-use crate::results::{RootTestResult, TestFieldComparison};
+use crate::results::RootTestResult;
 
 use anyhow::{Context, Result};
 
@@ -72,11 +72,6 @@ impl RootTest {
     pub fn run(&self) -> Result<RootTestResult> {
         debug!("Running test {}", self.name);
 
-        Ok(RootTestResult {
-            stdout: TestFieldComparison::Identical,
-            stderr: TestFieldComparison::Identical,
-            status: TestFieldComparison::Identical,
-            root: TestFieldComparison::Identical,
-        })
+        Ok(RootTestResult::Ok)
     }
 }

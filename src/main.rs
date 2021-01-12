@@ -14,6 +14,8 @@ mod tests;
 
 use anyhow::{Context, Result};
 
+use std::io::Write;
+
 fn main() {
     match run() {
         Ok(()) => std::process::exit(0),
@@ -47,15 +49,18 @@ fn run() -> Result<()> {
     debug!("Finished loading tests");
     trace!("Tests: {:#?}", tests);
 
-    let results: Vec<_> = tests
-        .into_iter()
-        .map(|test| {
-            test.run()
-                .with_context(|| format!("run test {}", test.name))
-        })
-        .collect();
-
-    dbg!(results);
+    println!("Running {} roottests\n", tests.len());
+    let mut counts = results::Counts::default();
+    for test in tests {
+        print!("{} ... ", test.name);
+        std::io::stdout().flush().unwrap();
+        let result = test
+            .run()
+            .with_context(|| format!("run test {}", test.name))?;
+        counts.update(&result);
+        println!("{}", result);
+    }
+    println!("\n{}", counts);
 
     Ok(())
 }
