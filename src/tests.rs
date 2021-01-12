@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
-use crate::results::{RootDirectory, TestFieldComparison};
+use crate::results::{RootTestResult, TestFieldComparison};
 
 use anyhow::{Context, Result};
 
@@ -15,22 +15,15 @@ pub struct RootTestParams {
 
 #[derive(Debug)]
 pub struct RootTest {
+    pub(crate) name: String,
     params: RootTestParams,
     stdin: Vec<u8>,
-    stdout: Vec<u8>,
-    stderr: Vec<u8>,
+    expected_stdout: Vec<u8>,
+    expected_stderr: Vec<u8>,
     environment: BTreeMap<String, String>,
     // Directories
     root_before: PathBuf,
     root_after: PathBuf,
-}
-
-#[derive(Debug)]
-pub struct RootTestResult {
-    pub stdout: TestFieldComparison<Vec<u8>, Vec<u8>>,
-    pub stderr: TestFieldComparison<Vec<u8>, Vec<u8>>,
-    pub status: TestFieldComparison<i32, i32>,
-    pub root: TestFieldComparison<RootDirectory, RootDirectory>
 }
 
 impl RootTest {
@@ -49,10 +42,10 @@ impl RootTest {
 
         let stdin = std::fs::read(dir.join("input.stdin")).context("load stdin")?;
         trace!("Stdin: {:#?}", stdin);
-        let stdout = std::fs::read(dir.join("expected.stdout")).context("load stdout")?;
-        trace!("Stdout: {:#?}", stdout);
-        let stderr = std::fs::read(dir.join("expected.stderr")).context("load stderr")?;
-        trace!("Stderr: {:#?}", stderr);
+        let expected_stdout = std::fs::read(dir.join("expected.stdout")).context("load stdout")?;
+        trace!("Stdout: {:#?}", expected_stdout);
+        let expected_stderr = std::fs::read(dir.join("expected.stderr")).context("load stderr")?;
+        trace!("Stderr: {:#?}", expected_stderr);
 
         let environment = toml::from_str(
             &read_to_string(dir.join("environment.toml")).context("read environment.toml")?,
@@ -61,17 +54,29 @@ impl RootTest {
         trace!("Environment: {:#?}", environment);
 
         Ok(RootTest {
+            name: dir
+                .file_name()
+                .context("get name of test's directory")?
+                .to_string_lossy()
+                .into(),
             params,
             stdin,
-            stdout,
-            stderr,
+            expected_stdout,
+            expected_stderr,
             environment,
             root_before: dir.join("root_before"),
             root_after: dir.join("root_after"),
         })
     }
 
-    pub fn run() -> Result<RootTestResult> {
-        todo!()
+    pub fn run(&self) -> Result<RootTestResult> {
+        debug!("Running test {}", self.name);
+
+        Ok(RootTestResult {
+            stdout: TestFieldComparison::Identical,
+            stderr: TestFieldComparison::Identical,
+            status: TestFieldComparison::Identical,
+            root: TestFieldComparison::Identical,
+        })
     }
 }

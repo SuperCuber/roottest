@@ -47,6 +47,16 @@ fn run() -> Result<()> {
     debug!("Finished loading tests");
     trace!("Tests: {:#?}", tests);
 
+    let results: Vec<_> = tests
+        .into_iter()
+        .map(|test| {
+            test.run()
+                .with_context(|| format!("run test {}", test.name))
+        })
+        .collect();
+
+    dbg!(results);
+
     Ok(())
 }
 
