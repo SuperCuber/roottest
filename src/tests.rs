@@ -8,23 +8,23 @@ use anyhow::{Context, Result};
 
 #[derive(Debug, Deserialize)]
 pub struct RootTestParams {
-    cd: PathBuf,
-    run: String,
-    expected_status: i32,
+    pub(crate) cd: PathBuf,
+    pub(crate) run: String,
+    pub(crate) expected_status: i32,
 }
 
 #[derive(Debug)]
 pub struct RootTest {
     pub(crate) name: String,
-    params: RootTestParams,
-    stdin: Vec<u8>,
-    expected_stdout: Vec<u8>,
-    expected_stderr: Vec<u8>,
-    environment: BTreeMap<String, String>,
+    pub(crate) params: RootTestParams,
+    pub(crate) stdin: Vec<u8>,
+    pub(crate) expected_stdout: Vec<u8>,
+    pub(crate) expected_stderr: Vec<u8>,
+    pub(crate) environment: BTreeMap<String, String>,
     // Directories
-    root_before: PathBuf,
-    root: PathBuf,
-    root_after: PathBuf,
+    pub(crate) root_before: PathBuf,
+    pub(crate) root: PathBuf,
+    pub(crate) root_after: PathBuf,
 }
 
 impl RootTest {
@@ -85,7 +85,7 @@ impl RootTest {
             .arg(&self.root_before)
             .arg(&self.root)
             .output()
-            .context("run cp self.root_before self.root")?
+            .context("run cp -r self.root_before self.root")?
             .status
             .success();
         ensure!(
@@ -96,7 +96,7 @@ impl RootTest {
         );
 
         debug!("Launching chrooted process");
-        let process_status = std::process::Command::new("fakechroot")
+        let process_output = std::process::Command::new("fakechroot")
             .arg("chroot")
             .arg(&self.root)
             .arg("sh")
@@ -104,8 +104,14 @@ impl RootTest {
             .arg(format!("cd {:?} && {}", self.params.cd, self.params.run))
             .output()
             .context("run test command in chroot")?;
-        dbg!(process_status);
 
-        Ok(RootTestResult::Ok)
+        debug!("Generating test results...");
+        let result = RootTestResult::new(self, process_output).context("generate test results")?;
+        trace!("Result: {:#?}", result);
+
+        debug!("Cleaning up...");
+        std::fs::remove_dir_all(&self.root).context("clean up temporary root directory")?;
+
+        Ok(result)
     }
 }
