@@ -5,6 +5,6 @@ pub enum TestFieldComparison<L, R> {
 }
 
 #[derive(Debug)]
-pub struct HomeDirectory {
+pub struct RootDirectory {
 }
 

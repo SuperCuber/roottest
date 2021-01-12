@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
-use crate::results::{HomeDirectory, TestFieldComparison};
+use crate::results::{RootDirectory, TestFieldComparison};
 
 use anyhow::{Context, Result};
 
@@ -21,9 +21,8 @@ pub struct RootTest {
     stderr: Vec<u8>,
     environment: BTreeMap<String, String>,
     // Directories
-    home_before: PathBuf,
-    home_after: PathBuf,
-    root: PathBuf,
+    root_before: PathBuf,
+    root_after: PathBuf,
 }
 
 #[derive(Debug)]
@@ -31,7 +30,7 @@ pub struct RootTestResult {
     pub stdout: TestFieldComparison<Vec<u8>, Vec<u8>>,
     pub stderr: TestFieldComparison<Vec<u8>, Vec<u8>>,
     pub status: TestFieldComparison<i32, i32>,
-    pub home: TestFieldComparison<HomeDirectory, HomeDirectory>
+    pub root: TestFieldComparison<RootDirectory, RootDirectory>
 }
 
 impl RootTest {
@@ -67,9 +66,8 @@ impl RootTest {
             stdout,
             stderr,
             environment,
-            home_before: dir.join("home_before"),
-            home_after: dir.join("home_after"),
-            root: dir.join("root"),
+            root_before: dir.join("root_before"),
+            root_after: dir.join("root_after"),
         })
     }
 
