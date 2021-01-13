@@ -156,8 +156,30 @@ impl std::fmt::Display for RootTestResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RootTestResult::Ok => write!(f, "{}", "ok".green()),
-            f @ RootTestResult::Failed { .. } => {
-                dbg!(f);
+            RootTestResult::Failed {
+                stdout,
+                stderr,
+                status,
+                root,
+            } => {
+                writeln!(f, "{}", "FAILED".red())?;
+                if let TestFieldComparison::Differs(actual, expected) = status {
+                    writeln!(
+                        f,
+                        "    status: expected {}, actual {}",
+                        expected.to_string().green(),
+                        actual.to_string().red()
+                    )?;
+                }
+                if let TestFieldComparison::Differs(_actual, _expected) = stdout {
+                    todo!()
+                }
+                if let TestFieldComparison::Differs(_actual, _expected) = stderr {
+                    todo!()
+                }
+                if let TestFieldComparison::Differs(_actual, _expected) = root {
+                    todo!()
+                }
                 Ok(())
             }
         }
@@ -169,7 +191,7 @@ impl std::fmt::Display for Counts {
         let result = if self.failed == 0 {
             "ok".green()
         } else {
-            "failed".red()
+            "FAILED".red()
         };
         write!(
             f,

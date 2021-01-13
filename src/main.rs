@@ -60,7 +60,7 @@ fn run() -> Result<()> {
         counts.update(&result);
         println!("{}", result);
     }
-    println!("\n{}", counts);
+    println!("{}", counts);
 
     Ok(())
 }
