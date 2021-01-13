@@ -1,9 +1,28 @@
 use crossterm::style::Colorize;
 
 use std::cmp::{max, min};
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+use crate::results::FileNode;
 
 pub type Diff = Vec<diff::Result<String>>;
 pub type HunkDiff = Vec<(usize, usize, Diff)>;
+
+#[derive(Debug)]
+pub enum FileNodeDiff {
+    Identical,
+    DifferentType(FileNode, FileNode),
+    FileDiffers {
+        contents: Diff,
+    },
+    DirectoryDiffers {
+        children: BTreeMap<PathBuf, FileNodeDiff>,
+    },
+    SymbolicLinkDiffers {
+        target: (PathBuf, PathBuf),
+    },
+}
 
 pub fn to_owned_diff_result(from: diff::Result<&str>) -> diff::Result<String> {
     match from {
@@ -143,4 +162,8 @@ pub fn print_diff(diff: Diff, extra_lines: usize) {
     }
 
     print_hunk(last_hunk.0, last_hunk.1, last_hunk.2, max_possible_digits);
+}
+
+pub fn file_node_diff(actual: FileNode, expected: FileNode) -> FileNodeDiff {
+    todo!()
 }
