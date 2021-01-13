@@ -21,7 +21,7 @@ pub enum TestFieldComparison<L, R> {
     Differs(L, R),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FileNode {
     File {
         contents: String,
@@ -114,6 +114,14 @@ impl FileNode {
             })
         }
     }
+
+    pub(crate) fn node_type(&self) -> &'static str {
+        match self {
+            FileNode::File { .. } => "file",
+            FileNode::Directory { .. } => "directory",
+            FileNode::SymbolicLink { .. } => "symbolic link",
+        }
+    }
 }
 
 impl RootTestResult {
@@ -200,8 +208,9 @@ impl RootTestResult {
                     assert!(crate::difference::diff_nonempty(&diff));
                     crate::difference::print_diff(diff, 3);
                 }
-                if let TestFieldComparison::Differs(_actual, _expected) = root {
-                    todo!()
+                if let TestFieldComparison::Differs(actual, expected) = root {
+                    let diff = crate::difference::file_node_diff(actual, expected);
+                    dbg!(diff);
                 }
             }
         }

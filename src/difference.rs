@@ -1,7 +1,7 @@
 use crossterm::style::Colorize;
 
 use std::cmp::{max, min};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use crate::results::FileNode;
@@ -12,7 +12,9 @@ pub type HunkDiff = Vec<(usize, usize, Diff)>;
 #[derive(Debug)]
 pub enum FileNodeDiff {
     Identical,
-    DifferentType(FileNode, FileNode),
+    Unexpected(&'static str),
+    Missing(&'static str),
+    DifferentType(&'static str, &'static str),
     FileDiffers {
         contents: Diff,
     },
@@ -164,6 +166,95 @@ pub fn print_diff(diff: Diff, extra_lines: usize) {
     print_hunk(last_hunk.0, last_hunk.1, last_hunk.2, max_possible_digits);
 }
 
-pub fn file_node_diff(actual: FileNode, expected: FileNode) -> FileNodeDiff {
-    todo!()
+pub fn file_node_diff(actual: &FileNode, expected: &FileNode) -> FileNodeDiff {
+    match (actual, expected) {
+        (
+            FileNode::File {
+                contents: actual_contents,
+            },
+            FileNode::File {
+                contents: expected_contents,
+            },
+        ) => {
+            let diff: Diff = diff::lines(&actual_contents, &expected_contents)
+                .into_iter()
+                .map(to_owned_diff_result)
+                .collect();
+
+            if diff_nonempty(&diff) {
+                FileNodeDiff::FileDiffers { contents: diff }
+            } else {
+                FileNodeDiff::Identical
+            }
+        }
+        (
+            FileNode::SymbolicLink {
+                target: actual_target,
+            },
+            FileNode::SymbolicLink {
+                target: expected_target,
+            },
+        ) => {
+            if actual_target == expected_target {
+                FileNodeDiff::Identical
+            } else {
+                FileNodeDiff::SymbolicLinkDiffers {
+                    target: (actual_target.into(), expected_target.into()),
+                }
+            }
+        }
+        (
+            FileNode::Directory {
+                children: actual_children,
+            },
+            FileNode::Directory {
+                children: expected_children,
+            },
+        ) => {
+            let mut actual_children = actual_children.clone();
+            let mut expected_children = expected_children.clone();
+
+            let mut different_children = BTreeMap::new();
+
+            let compared_children = actual_children
+                .keys()
+                .collect::<BTreeSet<_>>()
+                .intersection(&expected_children.keys().collect())
+                .cloned()
+                .cloned()
+                .collect::<BTreeSet<PathBuf>>();
+
+            for compared_child in compared_children {
+                let actual_child = actual_children.remove(compared_child.as_path()).unwrap();
+                let expected_child = expected_children.remove(compared_child.as_path()).unwrap();
+
+                match file_node_diff(&actual_child, &expected_child) {
+                    FileNodeDiff::Identical => {}
+                    diff => {
+                        different_children.insert(compared_child, diff);
+                    }
+                }
+            }
+
+            for (missing_child, missing_child_value) in expected_children {
+                different_children.insert(missing_child, FileNodeDiff::Missing(missing_child_value.node_type()));
+            }
+
+            for (unexpected_child, unexpected_child_value) in actual_children {
+                different_children.insert(
+                    unexpected_child,
+                    FileNodeDiff::Unexpected(unexpected_child_value.node_type()),
+                );
+            }
+
+            if different_children.is_empty() {
+                FileNodeDiff::Identical
+            } else {
+                FileNodeDiff::DirectoryDiffers {
+                    children: different_children,
+                }
+            }
+        }
+        (actual, expected) => FileNodeDiff::DifferentType(actual.node_type(), expected.node_type()),
+    }
 }
