@@ -9,6 +9,7 @@ extern crate structopt;
 extern crate toml;
 
 mod args;
+mod difference;
 mod results;
 mod tests;
 
@@ -58,9 +59,9 @@ fn run() -> Result<()> {
             .run()
             .with_context(|| format!("run test {}", test.name))?;
         counts.update(&result);
-        println!("{}", result);
+        result.print();
     }
-    println!("{}", counts);
+    println!("\n{}", counts);
 
     Ok(())
 }

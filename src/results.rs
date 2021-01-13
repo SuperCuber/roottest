@@ -152,35 +152,49 @@ impl Counts {
     }
 }
 
-impl std::fmt::Display for RootTestResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl RootTestResult {
+    pub fn print(&self) {
         match self {
-            RootTestResult::Ok => write!(f, "{}", "ok".green()),
+            RootTestResult::Ok => println!("{}", "ok".green()),
             RootTestResult::Failed {
                 stdout,
                 stderr,
                 status,
                 root,
             } => {
-                writeln!(f, "{}", "FAILED".red())?;
+                println!("{}", "FAILED".red());
                 if let TestFieldComparison::Differs(actual, expected) = status {
-                    writeln!(
-                        f,
-                        "    status: expected {}, actual {}",
+                    println!(
+                        "status differs: actual {}, expected {}",
+                        actual.to_string().red(),
                         expected.to_string().green(),
-                        actual.to_string().red()
-                    )?;
+                    );
                 }
-                if let TestFieldComparison::Differs(_actual, _expected) = stdout {
-                    todo!()
+                if let TestFieldComparison::Differs(actual, expected) = stdout {
+                    println!("stdout differs: ({}, {})", "actual".red(), "expected".green());
+                    let actual = String::from_utf8_lossy(actual);
+                    let expected = String::from_utf8_lossy(expected);
+                    let diff: Vec<_> = diff::lines(&actual, &expected)
+                        .into_iter()
+                        .map(crate::difference::to_owned_diff_result)
+                        .collect();
+                    assert!(crate::difference::diff_nonempty(&diff));
+                    crate::difference::print_diff(diff, 3);
                 }
-                if let TestFieldComparison::Differs(_actual, _expected) = stderr {
-                    todo!()
+                if let TestFieldComparison::Differs(actual, expected) = stderr {
+                    println!("stderr differs: ({}, {})", "actual".red(), "expected".green());
+                    let actual = String::from_utf8_lossy(actual);
+                    let expected = String::from_utf8_lossy(expected);
+                    let diff: Vec<_> = diff::lines(&actual, &expected)
+                        .into_iter()
+                        .map(crate::difference::to_owned_diff_result)
+                        .collect();
+                    assert!(crate::difference::diff_nonempty(&diff));
+                    crate::difference::print_diff(diff, 3);
                 }
                 if let TestFieldComparison::Differs(_actual, _expected) = root {
                     todo!()
                 }
-                Ok(())
             }
         }
     }
