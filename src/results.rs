@@ -218,7 +218,13 @@ impl std::fmt::Display for Counts {
         write!(
             f,
             "roottest result: {}. {} ok, {} failed.",
-            result, self.ok, self.failed
+            result,
+            self.ok.to_string().green(),
+            if self.failed == 0 {
+                "0".to_string().green()
+            } else {
+                self.failed.to_string().red()
+            },
         )
     }
 }
