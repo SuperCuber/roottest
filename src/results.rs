@@ -171,7 +171,11 @@ impl RootTestResult {
                     );
                 }
                 if let TestFieldComparison::Differs(actual, expected) = stdout {
-                    println!("stdout differs: ({}, {})", "actual".red(), "expected".green());
+                    println!(
+                        "stdout differs: ({}, {})",
+                        "actual".red(),
+                        "expected".green()
+                    );
                     let actual = String::from_utf8_lossy(actual);
                     let expected = String::from_utf8_lossy(expected);
                     let diff: Vec<_> = diff::lines(&actual, &expected)
@@ -182,7 +186,11 @@ impl RootTestResult {
                     crate::difference::print_diff(diff, 3);
                 }
                 if let TestFieldComparison::Differs(actual, expected) = stderr {
-                    println!("stderr differs: ({}, {})", "actual".red(), "expected".green());
+                    println!(
+                        "stderr differs: ({}, {})",
+                        "actual".red(),
+                        "expected".green()
+                    );
                     let actual = String::from_utf8_lossy(actual);
                     let expected = String::from_utf8_lossy(expected);
                     let diff: Vec<_> = diff::lines(&actual, &expected)
