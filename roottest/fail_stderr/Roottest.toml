@@ -1,0 +1,3 @@
+cd = "/home/user"
+run = "cd nonexistent_folder"
+expected_status = 0
