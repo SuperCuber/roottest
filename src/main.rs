@@ -4,9 +4,6 @@ extern crate anyhow;
 extern crate log;
 #[macro_use]
 extern crate serde;
-extern crate simplelog;
-extern crate structopt;
-extern crate toml;
 
 mod args;
 mod difference;
@@ -14,6 +11,7 @@ mod results;
 mod tests;
 
 use anyhow::{Context, Result};
+use crossterm::style::Colorize;
 
 use std::io::Write;
 
@@ -53,20 +51,31 @@ fn run() -> Result<bool> {
 
     println!("Running {} roottests\n", tests.len());
     let mut counts = results::Counts::default();
+    let mut fails = Vec::new();
     for test in tests {
         print!("{} ... ", test.name);
         std::io::stdout().flush().unwrap();
+
         let result = test
             .run()
             .with_context(|| format!("run test {}", test.name))?;
-        counts.update(&result);
+
         println!("{}", result.status());
+        counts.update(&result);
         if !result.ok() {
+            fails.push((test.name, result));
+        }
+    }
+
+    if !fails.is_empty() {
+        println!("\nfailures:");
+        for (test, result) in fails {
+            println!("\n--- {} ---", test.blue());
             result.print_details();
         }
     }
-    println!("\n{}", counts);
 
+    println!("\n{}", counts);
     Ok(counts.tests_passed())
 }
 

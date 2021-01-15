@@ -1,0 +1,3 @@
+cd = "/home/user"
+run = "cat nonexistent_file"
+expected_status = 0
