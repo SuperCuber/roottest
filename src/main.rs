@@ -57,7 +57,7 @@ fn run() -> Result<bool> {
         std::io::stdout().flush().unwrap();
 
         let result = test
-            .run()
+            .run(opt.cleanup)
             .with_context(|| format!("run test {}", test.name))?;
 
         println!("{}", result.status());

@@ -12,6 +12,10 @@ pub(crate) struct Opt {
     #[structopt(short, long)]
     pub recurse: Option<PathBuf>,
 
+    /// Do not delete the temporary root/ directory after running the test in it
+    #[structopt(short="C", long="no-cleanup", parse(from_flag = std::ops::Not::not))]
+    pub cleanup: bool,
+
     /// A list of test folders
     pub tests: Vec<PathBuf>,
 }

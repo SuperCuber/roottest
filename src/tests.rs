@@ -67,7 +67,7 @@ impl RootTest {
         })
     }
 
-    pub fn run(&self) -> Result<RootTestResult> {
+    pub fn run(&self, cleanup: bool) -> Result<RootTestResult> {
         if log_enabled!(log::Level::Debug) {
             // newline after the 3 dots
             println!();
@@ -109,8 +109,12 @@ impl RootTest {
         let result = RootTestResult::new(self, process_output).context("generate test results")?;
         trace!("Result: {:#?}", result);
 
-        debug!("Cleaning up...");
-        std::fs::remove_dir_all(&self.root).context("clean up temporary root directory")?;
+        if cleanup {
+            debug!("Cleaning up...");
+            std::fs::remove_dir_all(&self.root).context("clean up temporary root directory")?;
+        } else {
+            debug!("Not cleaning up");
+        }
 
         Ok(result)
     }
