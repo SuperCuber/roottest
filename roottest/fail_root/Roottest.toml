@@ -1,0 +1,3 @@
+cd = "/home/user"
+run = "echo Goodbye World >output.txt && ln -s unexpected"
+expected_status = 0

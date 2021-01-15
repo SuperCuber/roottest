@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use crossterm::style::Colorize;
 
+use crate::difference::FileNodeDiff;
+
 #[derive(Debug)]
 pub enum RootTestResult {
     Ok,
@@ -209,8 +211,9 @@ impl RootTestResult {
                     crate::difference::print_diff(diff, 3);
                 }
                 if let TestFieldComparison::Differs(actual, expected) = root {
-                    let diff = crate::difference::file_node_diff(actual, expected);
-                    dbg!(diff);
+                    let diff = FileNodeDiff::from_file_nodes(actual, expected);
+                    print!("root ");
+                    diff.print(2);
                 }
             }
         }

@@ -166,95 +166,141 @@ pub fn print_diff(diff: Diff, extra_lines: usize) {
     print_hunk(last_hunk.0, last_hunk.1, last_hunk.2, max_possible_digits);
 }
 
-pub fn file_node_diff(actual: &FileNode, expected: &FileNode) -> FileNodeDiff {
-    match (actual, expected) {
-        (
-            FileNode::File {
-                contents: actual_contents,
-            },
-            FileNode::File {
-                contents: expected_contents,
-            },
-        ) => {
-            let diff: Diff = diff::lines(&actual_contents, &expected_contents)
-                .into_iter()
-                .map(to_owned_diff_result)
-                .collect();
+impl FileNodeDiff {
+    pub fn from_file_nodes(actual: &FileNode, expected: &FileNode) -> FileNodeDiff {
+        match (actual, expected) {
+            (
+                FileNode::File {
+                    contents: actual_contents,
+                },
+                FileNode::File {
+                    contents: expected_contents,
+                },
+            ) => {
+                let diff: Diff = diff::lines(&actual_contents, &expected_contents)
+                    .into_iter()
+                    .map(to_owned_diff_result)
+                    .collect();
 
-            if diff_nonempty(&diff) {
-                FileNodeDiff::FileDiffers { contents: diff }
-            } else {
-                FileNodeDiff::Identical
-            }
-        }
-        (
-            FileNode::SymbolicLink {
-                target: actual_target,
-            },
-            FileNode::SymbolicLink {
-                target: expected_target,
-            },
-        ) => {
-            if actual_target == expected_target {
-                FileNodeDiff::Identical
-            } else {
-                FileNodeDiff::SymbolicLinkDiffers {
-                    target: (actual_target.into(), expected_target.into()),
+                if diff_nonempty(&diff) {
+                    FileNodeDiff::FileDiffers { contents: diff }
+                } else {
+                    FileNodeDiff::Identical
                 }
             }
-        }
-        (
-            FileNode::Directory {
-                children: actual_children,
-            },
-            FileNode::Directory {
-                children: expected_children,
-            },
-        ) => {
-            let mut actual_children = actual_children.clone();
-            let mut expected_children = expected_children.clone();
-
-            let mut different_children = BTreeMap::new();
-
-            let compared_children = actual_children
-                .keys()
-                .collect::<BTreeSet<_>>()
-                .intersection(&expected_children.keys().collect())
-                .cloned()
-                .cloned()
-                .collect::<BTreeSet<PathBuf>>();
-
-            for compared_child in compared_children {
-                let actual_child = actual_children.remove(compared_child.as_path()).unwrap();
-                let expected_child = expected_children.remove(compared_child.as_path()).unwrap();
-
-                match file_node_diff(&actual_child, &expected_child) {
-                    FileNodeDiff::Identical => {}
-                    diff => {
-                        different_children.insert(compared_child, diff);
+            (
+                FileNode::SymbolicLink {
+                    target: actual_target,
+                },
+                FileNode::SymbolicLink {
+                    target: expected_target,
+                },
+            ) => {
+                if actual_target == expected_target {
+                    FileNodeDiff::Identical
+                } else {
+                    FileNodeDiff::SymbolicLinkDiffers {
+                        target: (actual_target.into(), expected_target.into()),
                     }
                 }
             }
+            (
+                FileNode::Directory {
+                    children: actual_children,
+                },
+                FileNode::Directory {
+                    children: expected_children,
+                },
+            ) => {
+                let mut actual_children = actual_children.clone();
+                let mut expected_children = expected_children.clone();
 
-            for (missing_child, missing_child_value) in expected_children {
-                different_children.insert(missing_child, FileNodeDiff::Missing(missing_child_value.node_type()));
-            }
+                let mut different_children = BTreeMap::new();
 
-            for (unexpected_child, unexpected_child_value) in actual_children {
-                different_children.insert(
-                    unexpected_child,
-                    FileNodeDiff::Unexpected(unexpected_child_value.node_type()),
-                );
-            }
+                let compared_children = actual_children
+                    .keys()
+                    .collect::<BTreeSet<_>>()
+                    .intersection(&expected_children.keys().collect())
+                    .cloned()
+                    .cloned()
+                    .collect::<BTreeSet<PathBuf>>();
 
-            if different_children.is_empty() {
-                FileNodeDiff::Identical
-            } else {
-                FileNodeDiff::DirectoryDiffers {
-                    children: different_children,
+                for compared_child in compared_children {
+                    let actual_child = actual_children.remove(compared_child.as_path()).unwrap();
+                    let expected_child =
+                        expected_children.remove(compared_child.as_path()).unwrap();
+
+                    match FileNodeDiff::from_file_nodes(&actual_child, &expected_child) {
+                        FileNodeDiff::Identical => {}
+                        diff => {
+                            different_children.insert(compared_child, diff);
+                        }
+                    }
+                }
+
+                for (missing_child, missing_child_value) in expected_children {
+                    different_children.insert(
+                        missing_child,
+                        FileNodeDiff::Missing(missing_child_value.node_type()),
+                    );
+                }
+
+                for (unexpected_child, unexpected_child_value) in actual_children {
+                    different_children.insert(
+                        unexpected_child,
+                        FileNodeDiff::Unexpected(unexpected_child_value.node_type()),
+                    );
+                }
+
+                if different_children.is_empty() {
+                    FileNodeDiff::Identical
+                } else {
+                    FileNodeDiff::DirectoryDiffers {
+                        children: different_children,
+                    }
                 }
             }
+            (actual, expected) => {
+                FileNodeDiff::DifferentType(actual.node_type(), expected.node_type())
+            }
         }
-        (actual, expected) => FileNodeDiff::DifferentType(actual.node_type(), expected.node_type()),
+    }
+
+    pub fn print(self, indentation: usize) {
+        let spaces: String = (0..indentation).map(|_| ' ').collect();
+        match self {
+            FileNodeDiff::Identical => unreachable!("printing identical node"),
+            FileNodeDiff::Unexpected(node_type) => {
+                println!("{} {}", "unexpected".green(), node_type.red());
+            }
+            FileNodeDiff::Missing(node_type) => {
+                println!("{} {}", node_type.green(), "missing".red());
+            }
+            FileNodeDiff::DifferentType(actual, expected) => {
+                println!("type differs: {} != {}", actual.red(), expected.green())
+            }
+            FileNodeDiff::FileDiffers { contents } => {
+                println!(
+                    "contents differ ({}, {})",
+                    "actual".red(),
+                    "expected".green()
+                );
+                print_diff(contents, 3);
+            }
+            FileNodeDiff::DirectoryDiffers { children } => {
+                println!("directory differs:");
+                for (child, diff) in children {
+                    print!("{}{}: ", spaces, child.to_string_lossy().blue());
+                    diff.print(indentation + 2);
+                }
+            }
+            FileNodeDiff::SymbolicLinkDiffers { target } => {
+                println!(
+                    "symbolic link's target differs: {} != {}",
+                    target.0.to_string_lossy().red(),
+                    target.1.to_string_lossy().green()
+                );
+            }
+        }
     }
 }
