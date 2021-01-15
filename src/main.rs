@@ -19,15 +19,16 @@ use std::io::Write;
 
 fn main() {
     match run() {
-        Ok(()) => std::process::exit(0),
+        Ok(true) => std::process::exit(0),
+        Ok(false) => std::process::exit(1),
         Err(e) => {
             display_error(e);
-            std::process::exit(1);
+            std::process::exit(2);
         }
     }
 }
 
-fn run() -> Result<()> {
+fn run() -> Result<bool> {
     let opt = args::get_args().context("parse arguments")?;
     trace!("Options: {:#?}", opt);
 
@@ -63,7 +64,7 @@ fn run() -> Result<()> {
     }
     println!("\n{}", counts);
 
-    Ok(())
+    Ok(counts.tests_passed())
 }
 
 pub(crate) fn display_error(error: anyhow::Error) {

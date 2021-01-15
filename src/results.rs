@@ -160,6 +160,10 @@ impl Counts {
             RootTestResult::Failed { .. } => self.failed += 1,
         }
     }
+
+    pub fn tests_passed(&self) -> bool {
+        self.failed == 0
+    }
 }
 
 impl RootTestResult {
