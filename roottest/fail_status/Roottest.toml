@@ -1,3 +1,0 @@
-cd = "/home/user"
-run = "false"
-expected_status = 0

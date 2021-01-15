@@ -1,3 +1,0 @@
-cd = "/home/user"
-run = "echo Goodbye World!"
-expected_status = 0
