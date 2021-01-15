@@ -11,7 +11,7 @@ mod results;
 mod tests;
 
 use anyhow::{Context, Result};
-use crossterm::style::Colorize;
+use crossterm::style::Styler;
 
 use std::io::Write;
 
@@ -70,7 +70,7 @@ fn run() -> Result<bool> {
     if !fails.is_empty() {
         println!("\nfailures:");
         for (test, result) in fails {
-            println!("\n--- {} ---", test.blue());
+            println!("\n--- {} ---", test.bold());
             result.print_details();
         }
     }
