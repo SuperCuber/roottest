@@ -120,6 +120,14 @@ impl RootTestResult {
         }
     }
 
+    pub fn short_status(&self) -> crossterm::style::StyledContent<&'static str> {
+        if self.ok() {
+            ".".white()
+        } else {
+            "F".red()
+        }
+    }
+
     pub fn print_details(self) {
         match self {
             RootTestResult::Ok => panic!("printing details of ok result"),

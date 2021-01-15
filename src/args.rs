@@ -16,6 +16,10 @@ pub(crate) struct Opt {
     #[structopt(short="C", long="no-cleanup", parse(from_flag = std::ops::Not::not))]
     pub cleanup: bool,
 
+    /// Specify once for short output. Specify twice for no output (only when all tests pass)
+    #[structopt(short, long, parse(from_occurrences))]
+    pub quiet: usize,
+
     /// A list of test folders
     pub tests: Vec<PathBuf>,
 }

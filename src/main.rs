@@ -51,33 +51,56 @@ fn run() -> Result<bool> {
     }
     trace!("Tests: {:#?}", tests);
 
-    println!("Running {} roottests\n", tests.len());
+    if opt.quiet == 0 {
+        println!("Running {} roottests\n", tests.len());
+    }
+
     let mut counts = results::Counts::default();
     let mut fails = Vec::new();
     for test in tests {
-        print!("{} ... ", test.name);
-        std::io::stdout().flush().unwrap();
+        if opt.quiet == 0 {
+            print!("{} ... ", test.name);
+            std::io::stdout().flush().unwrap();
+        }
 
         let result = test
             .run(opt.cleanup)
             .with_context(|| format!("run test {}", test.name))?;
 
-        println!("{}", result.status());
+        if opt.quiet == 0 {
+            println!("{}", result.status());
+        } else if opt.quiet == 1 {
+            print!("{}", result.short_status());
+            std::io::stdout().flush().unwrap();
+        }
+
         counts.update(&result);
         if !result.ok() {
             fails.push((test.name, result));
         }
     }
 
+    if opt.quiet == 1 {
+        // Break line after dots
+        println!();
+    }
+
     if !fails.is_empty() {
-        println!("\nfailures:");
+        if opt.quiet <= 1 {
+            println!();
+        }
+        println!("failures:");
+
         for (test, result) in fails {
             println!("\n--- {} ---", test.bold());
             result.print_details();
         }
     }
 
-    println!("\n{}", counts);
+    if opt.quiet <= 1 || !counts.tests_passed() {
+        println!("\n{}", counts);
+    }
+
     Ok(counts.tests_passed())
 }
 
