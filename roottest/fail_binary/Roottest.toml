@@ -1,0 +1,3 @@
+cd = "/home/user"
+run = "cat file.txt"
+expected_status = 0

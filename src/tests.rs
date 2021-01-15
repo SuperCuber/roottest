@@ -21,10 +21,12 @@ pub struct RootTest {
     pub(crate) expected_stdout: Vec<u8>,
     pub(crate) expected_stderr: Vec<u8>,
     pub(crate) environment: BTreeMap<String, String>,
-    // Directories
+
     pub(crate) root_before: PathBuf,
     pub(crate) root: PathBuf,
     pub(crate) root_after: PathBuf,
+    pub(crate) actual_stdout: PathBuf,
+    pub(crate) actual_stderr: PathBuf,
 }
 
 impl RootTest {
@@ -60,6 +62,8 @@ impl RootTest {
             stdin,
             expected_stdout,
             expected_stderr,
+            actual_stdout: dir.join("actual.stdout"),
+            actual_stderr: dir.join("actual.stderr"),
             environment,
             root_before: dir.join("root_before"),
             root: dir.join("root"),
@@ -73,11 +77,10 @@ impl RootTest {
             println!();
         }
 
-        debug!(
-            "Cleaning up previous root at {:?} if it exists...",
-            self.root
-        );
+        debug!("Cleaning up previous test run...",);
         let _ = std::fs::remove_dir_all(&self.root);
+        let _ = std::fs::remove_file(&self.actual_stdout);
+        let _ = std::fs::remove_file(&self.actual_stderr);
 
         debug!("Copying {:?} to {:?}...", self.root_before, self.root);
         let cp_success = std::process::Command::new("cp")
@@ -104,6 +107,14 @@ impl RootTest {
             .arg(format!("cd {:?} && {}", self.params.cd, self.params.run))
             .output()
             .context("run test command in chroot")?;
+
+        if !cleanup {
+            debug!("Saving actual stdout and stderr");
+            std::fs::write(&self.actual_stdout, &process_output.stdout)
+                .context("save actual stdout")?;
+            std::fs::write(&self.actual_stderr, &process_output.stderr)
+                .context("save actual stderr")?;
+        }
 
         debug!("Generating test results...");
         let result = RootTestResult::new(self, process_output).context("generate test results")?;

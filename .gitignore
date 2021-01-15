@@ -1,2 +1,4 @@
 /target
 /roottest/*/root
+/roottest/*/actual.stdout
+/roottest/*/actual.stderr

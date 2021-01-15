@@ -16,7 +16,7 @@ pub enum FileNodeDiff {
     Missing(&'static str),
     DifferentType(&'static str, &'static str),
     FileDiffers {
-        contents: Diff,
+        contents: FileDiff,
     },
     DirectoryDiffers {
         children: BTreeMap<PathBuf, FileNodeDiff>,
@@ -24,6 +24,12 @@ pub enum FileNodeDiff {
     SymbolicLinkDiffers {
         target: (PathBuf, PathBuf),
     },
+}
+
+#[derive(Debug)]
+pub enum FileDiff {
+    Diff(Diff),
+    Binary,
 }
 
 pub fn to_owned_diff_result(from: diff::Result<&str>) -> diff::Result<String> {
@@ -167,7 +173,7 @@ pub fn print_diff(diff: Diff, extra_lines: usize) {
 }
 
 impl FileNodeDiff {
-    pub fn from_file_nodes(actual: &FileNode, expected: &FileNode) -> FileNodeDiff {
+    pub fn from_file_nodes(actual: FileNode, expected: FileNode) -> FileNodeDiff {
         match (actual, expected) {
             (
                 FileNode::File {
@@ -177,15 +183,28 @@ impl FileNodeDiff {
                     contents: expected_contents,
                 },
             ) => {
-                let diff: Diff = diff::lines(&actual_contents, &expected_contents)
-                    .into_iter()
-                    .map(to_owned_diff_result)
-                    .collect();
-
-                if diff_nonempty(&diff) {
-                    FileNodeDiff::FileDiffers { contents: diff }
-                } else {
+                if actual_contents == expected_contents {
                     FileNodeDiff::Identical
+                } else {
+                    match (
+                        String::from_utf8(actual_contents),
+                        String::from_utf8(expected_contents),
+                    ) {
+                        (Ok(actual_contents), Ok(expected_contents)) => {
+                            let diff: Diff = diff::lines(&actual_contents, &expected_contents)
+                                .into_iter()
+                                .map(to_owned_diff_result)
+                                .collect();
+
+                            assert!(diff_nonempty(&diff));
+                            FileNodeDiff::FileDiffers {
+                                contents: FileDiff::Diff(diff),
+                            }
+                        }
+                        (_, _) => FileNodeDiff::FileDiffers {
+                            contents: FileDiff::Binary,
+                        },
+                    }
                 }
             }
             (
@@ -200,21 +219,18 @@ impl FileNodeDiff {
                     FileNodeDiff::Identical
                 } else {
                     FileNodeDiff::SymbolicLinkDiffers {
-                        target: (actual_target.into(), expected_target.into()),
+                        target: (actual_target, expected_target),
                     }
                 }
             }
             (
                 FileNode::Directory {
-                    children: actual_children,
+                    children: mut actual_children,
                 },
                 FileNode::Directory {
-                    children: expected_children,
+                    children: mut expected_children,
                 },
             ) => {
-                let mut actual_children = actual_children.clone();
-                let mut expected_children = expected_children.clone();
-
                 let mut different_children = BTreeMap::new();
 
                 let compared_children = actual_children
@@ -230,7 +246,7 @@ impl FileNodeDiff {
                     let expected_child =
                         expected_children.remove(compared_child.as_path()).unwrap();
 
-                    match FileNodeDiff::from_file_nodes(&actual_child, &expected_child) {
+                    match FileNodeDiff::from_file_nodes(actual_child, expected_child) {
                         FileNodeDiff::Identical => {}
                         diff => {
                             different_children.insert(compared_child, diff);
@@ -293,7 +309,13 @@ impl FileNodeDiff {
                     "actual".red(),
                     "expected".green()
                 );
-                print_diff(contents, 3);
+                match contents {
+                    FileDiff::Diff(diff) => print_diff(diff, 3),
+                    FileDiff::Binary => {
+                        println!("  Either actual file or expected file is invalid UTF-8");
+                        println!("  Run again with --no-cleanup and check the contents of root/ and root_after/");
+                    }
+                }
             }
             FileNodeDiff::DirectoryDiffers { children } => {
                 println!();

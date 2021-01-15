@@ -26,7 +26,7 @@ pub enum TestFieldComparison<L, R> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FileNode {
     File {
-        contents: String,
+        contents: Vec<u8>,
         // something like
         // metadata: (),
         // permissions: (),
@@ -120,7 +120,7 @@ impl RootTestResult {
         }
     }
 
-    pub fn print_details(&self) {
+    pub fn print_details(self) {
         match self {
             RootTestResult::Ok => panic!("printing details of ok result"),
             RootTestResult::Failed {
@@ -136,41 +136,46 @@ impl RootTestResult {
                         expected.to_string().green(),
                     );
                 }
-                if let TestFieldComparison::Differs(actual, expected) = stdout {
-                    println!(
-                        "stdout differs: ({}, {})",
-                        "actual".red(),
-                        "expected".green()
-                    );
-                    let actual = String::from_utf8_lossy(actual);
-                    let expected = String::from_utf8_lossy(expected);
-                    let diff: Vec<_> = diff::lines(&actual, &expected)
-                        .into_iter()
-                        .map(crate::difference::to_owned_diff_result)
-                        .collect();
-                    assert!(crate::difference::diff_nonempty(&diff));
-                    crate::difference::print_diff(diff, 3);
-                }
-                if let TestFieldComparison::Differs(actual, expected) = stderr {
-                    println!(
-                        "stderr differs: ({}, {})",
-                        "actual".red(),
-                        "expected".green()
-                    );
-                    let actual = String::from_utf8_lossy(actual);
-                    let expected = String::from_utf8_lossy(expected);
-                    let diff: Vec<_> = diff::lines(&actual, &expected)
-                        .into_iter()
-                        .map(crate::difference::to_owned_diff_result)
-                        .collect();
-                    assert!(crate::difference::diff_nonempty(&diff));
-                    crate::difference::print_diff(diff, 3);
-                }
+
+                output_diff(stdout, "stdout");
+                output_diff(stderr, "stderr");
+
                 if let TestFieldComparison::Differs(actual, expected) = root {
                     let diff = FileNodeDiff::from_file_nodes(actual, expected);
                     print!("root directory differs:");
                     diff.print(2);
                 }
+            }
+        }
+    }
+}
+
+fn output_diff(output: TestFieldComparison<Vec<u8>, Vec<u8>>, name: &str) {
+    if let TestFieldComparison::Differs(actual, expected) = output {
+        println!(
+            "{} differs: ({}, {})",
+            name,
+            "actual".red(),
+            "expected".green()
+        );
+        match (String::from_utf8(actual), String::from_utf8(expected)) {
+            (Ok(actual), Ok(expected)) => {
+                let diff: Vec<_> = diff::lines(&actual, &expected)
+                    .into_iter()
+                    .map(crate::difference::to_owned_diff_result)
+                    .collect();
+                assert!(crate::difference::diff_nonempty(&diff));
+                crate::difference::print_diff(diff, 3);
+            }
+            (_, _) => {
+                println!(
+                    "  Either actual {} or expected {} is invalid UTF-8",
+                    name, name
+                );
+                println!(
+                    "  Run again with --no-cleanup and check actual.{} and expected.{}",
+                    name, name
+                );
             }
         }
     }
@@ -218,7 +223,7 @@ impl FileNode {
             })
         } else {
             Ok(FileNode::File {
-                contents: std::fs::read_to_string(path)
+                contents: std::fs::read(path)
                     .with_context(|| format!("read contents of {:?}", path))?,
             })
         }
