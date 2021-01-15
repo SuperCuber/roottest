@@ -60,7 +60,10 @@ fn run() -> Result<bool> {
             .run()
             .with_context(|| format!("run test {}", test.name))?;
         counts.update(&result);
-        result.print();
+        println!("{}", result.status());
+        if !result.ok() {
+            result.print_details();
+        }
     }
     println!("\n{}", counts);
 

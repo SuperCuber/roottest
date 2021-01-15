@@ -88,45 +88,7 @@ impl RootTestResult {
         }
         .upgrade_to_ok())
     }
-}
 
-impl FileNode {
-    fn load_from(path: impl AsRef<Path>) -> Result<FileNode> {
-        let path = path.as_ref();
-        if let Ok(target) = path.read_link() {
-            Ok(FileNode::SymbolicLink { target })
-        } else if path.is_dir() {
-            let children: Result<BTreeMap<PathBuf, FileNode>> = path
-                .read_dir()
-                .context("read dir")?
-                .map(|e| {
-                    e.context("get dir entry").and_then(|e| {
-                        FileNode::load_from(&e.path())
-                            .map(|r| (PathBuf::from(e.path().file_name().expect("file name")), r))
-                    })
-                })
-                .collect();
-            Ok(FileNode::Directory {
-                children: children?,
-            })
-        } else {
-            Ok(FileNode::File {
-                contents: std::fs::read_to_string(path)
-                    .with_context(|| format!("read contents of {:?}", path))?,
-            })
-        }
-    }
-
-    pub(crate) fn node_type(&self) -> &'static str {
-        match self {
-            FileNode::File { .. } => "file",
-            FileNode::Directory { .. } => "directory",
-            FileNode::SymbolicLink { .. } => "symbolic link",
-        }
-    }
-}
-
-impl RootTestResult {
     fn upgrade_to_ok(self) -> RootTestResult {
         match self {
             RootTestResult::Ok => RootTestResult::Ok,
@@ -145,38 +107,28 @@ impl RootTestResult {
             failed => failed,
         }
     }
-}
 
-impl<L, R> TestFieldComparison<L, R> {
-    fn identical(&self) -> bool {
-        matches!(self, TestFieldComparison::Identical)
+    pub fn ok(&self) -> bool {
+        matches!(self, RootTestResult::Ok)
     }
-}
 
-impl Counts {
-    pub fn update(&mut self, result: &RootTestResult) {
-        match result {
-            RootTestResult::Ok => self.ok += 1,
-            RootTestResult::Failed { .. } => self.failed += 1,
+    pub fn status(&self) -> crossterm::style::StyledContent<&'static str> {
+        if self.ok() {
+            "ok".green()
+        } else {
+            "FAILED".red()
         }
     }
 
-    pub fn tests_passed(&self) -> bool {
-        self.failed == 0
-    }
-}
-
-impl RootTestResult {
-    pub fn print(&self) {
+    pub fn print_details(&self) {
         match self {
-            RootTestResult::Ok => println!("{}", "ok".green()),
+            RootTestResult::Ok => panic!("printing details of ok result"),
             RootTestResult::Failed {
                 stdout,
                 stderr,
                 status,
                 root,
             } => {
-                println!("{}", "FAILED".red());
                 if let TestFieldComparison::Differs(actual, expected) = status {
                     println!(
                         "status differs: actual {}, expected {}",
@@ -242,5 +194,60 @@ impl std::fmt::Display for Counts {
                 self.failed.to_string().red()
             },
         )
+    }
+}
+
+impl FileNode {
+    fn load_from(path: impl AsRef<Path>) -> Result<FileNode> {
+        let path = path.as_ref();
+        if let Ok(target) = path.read_link() {
+            Ok(FileNode::SymbolicLink { target })
+        } else if path.is_dir() {
+            let children: Result<BTreeMap<PathBuf, FileNode>> = path
+                .read_dir()
+                .context("read dir")?
+                .map(|e| {
+                    e.context("get dir entry").and_then(|e| {
+                        FileNode::load_from(&e.path())
+                            .map(|r| (PathBuf::from(e.path().file_name().expect("file name")), r))
+                    })
+                })
+                .collect();
+            Ok(FileNode::Directory {
+                children: children?,
+            })
+        } else {
+            Ok(FileNode::File {
+                contents: std::fs::read_to_string(path)
+                    .with_context(|| format!("read contents of {:?}", path))?,
+            })
+        }
+    }
+
+    pub(crate) fn node_type(&self) -> &'static str {
+        match self {
+            FileNode::File { .. } => "file",
+            FileNode::Directory { .. } => "directory",
+            FileNode::SymbolicLink { .. } => "symbolic link",
+        }
+    }
+}
+
+impl<L, R> TestFieldComparison<L, R> {
+    fn identical(&self) -> bool {
+        matches!(self, TestFieldComparison::Identical)
+    }
+}
+
+impl Counts {
+    pub fn update(&mut self, result: &RootTestResult) {
+        match result {
+            RootTestResult::Ok => self.ok += 1,
+            RootTestResult::Failed { .. } => self.failed += 1,
+        }
+    }
+
+    pub fn tests_passed(&self) -> bool {
+        self.failed == 0
     }
 }
