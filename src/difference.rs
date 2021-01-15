@@ -271,10 +271,18 @@ impl FileNodeDiff {
         match self {
             FileNodeDiff::Identical => unreachable!("printing identical node"),
             FileNodeDiff::Unexpected(node_type) => {
-                println!("unexpected: actual {}, expected {}", node_type.red(), "nothing".green());
+                println!(
+                    "unexpected: actual {}, expected {}",
+                    node_type.red(),
+                    "nothing".green()
+                );
             }
             FileNodeDiff::Missing(node_type) => {
-                println!("missing: actual {}, expected {}", "nothing".red(), node_type.green());
+                println!(
+                    "missing: actual {}, expected {}",
+                    "nothing".red(),
+                    node_type.green()
+                );
             }
             FileNodeDiff::DifferentType(actual, expected) => {
                 println!("type differs: {} != {}", actual.red(), expected.green())
