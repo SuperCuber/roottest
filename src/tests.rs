@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::results::RootTestResult;
 
 use anyhow::{Context, Result};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct RootTestParams {
@@ -97,7 +98,7 @@ impl RootTest {
             .context("run cp -r self.root_before self.root")?
             .status
             .success();
-        ensure!(
+        anyhow::ensure!(
             cp_success,
             "failed to run cp -r {:?} {:?}",
             self.root_before,
