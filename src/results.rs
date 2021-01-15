@@ -216,7 +216,7 @@ impl RootTestResult {
                 }
                 if let TestFieldComparison::Differs(actual, expected) = root {
                     let diff = FileNodeDiff::from_file_nodes(actual, expected);
-                    print!("root ");
+                    print!("root directory differs:");
                     diff.print(2);
                 }
             }

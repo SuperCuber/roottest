@@ -271,10 +271,10 @@ impl FileNodeDiff {
         match self {
             FileNodeDiff::Identical => unreachable!("printing identical node"),
             FileNodeDiff::Unexpected(node_type) => {
-                println!("{} {}", "unexpected".green(), node_type.red());
+                println!("unexpected: actual {}, expected {}", node_type.red(), "nothing".green());
             }
             FileNodeDiff::Missing(node_type) => {
-                println!("{} {}", node_type.green(), "missing".red());
+                println!("missing: actual {}, expected {}", "nothing".red(), node_type.green());
             }
             FileNodeDiff::DifferentType(actual, expected) => {
                 println!("type differs: {} != {}", actual.red(), expected.green())
@@ -288,7 +288,7 @@ impl FileNodeDiff {
                 print_diff(contents, 3);
             }
             FileNodeDiff::DirectoryDiffers { children } => {
-                println!("directory differs:");
+                println!();
                 for (child, diff) in children {
                     print!("{}{}: ", spaces, child.to_string_lossy().blue());
                     diff.print(indentation + 2);
@@ -296,7 +296,7 @@ impl FileNodeDiff {
             }
             FileNodeDiff::SymbolicLinkDiffers { target } => {
                 println!(
-                    "symbolic link's target differs: {} != {}",
+                    "symbolic link's target differs: actual {}, expected {}",
                     target.0.to_string_lossy().red(),
                     target.1.to_string_lossy().green()
                 );
