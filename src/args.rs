@@ -5,22 +5,23 @@ use std::path::PathBuf;
 
 #[derive(Debug, StructOpt)]
 pub(crate) struct Opt {
+    /// Specify between 0 and 3 times to control debug information verbosity
     #[structopt(short, long = "verbose", parse(from_occurrences))]
     pub verbosity: usize,
 
-    /// Run every folder in this directory as a test
+    /// Run every folder in a directory as a test (can be given multiple times)
     #[structopt(short, long)]
-    pub recurse: Option<PathBuf>,
+    pub directory: Vec<PathBuf>,
 
-    /// Do not delete the temporary root/ directory after running the test in it
+    /// Save actual output and do not delete the temporary root/ directory after running the test in it
     #[structopt(short="C", long="no-cleanup", parse(from_flag = std::ops::Not::not))]
     pub cleanup: bool,
 
-    /// Specify once for short output. Specify twice for no output (only when all tests pass)
+    /// Specify once for short output, specify twice for no output when tests pass
     #[structopt(short, long, parse(from_occurrences))]
     pub quiet: usize,
 
-    /// A list of test folders
+    /// An optional list of test folders
     pub tests: Vec<PathBuf>,
 }
 
@@ -28,9 +29,6 @@ pub(crate) fn get_args() -> anyhow::Result<Opt> {
     let mut opt = Opt::from_args();
     opt.verbosity = std::cmp::min(opt.verbosity, 3);
     init_logger(&opt);
-    if opt.recurse.is_some() && !opt.tests.is_empty() {
-        bail!("cannot specify tests if --recurse is given");
-    }
     Ok(opt)
 }
 

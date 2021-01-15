@@ -30,14 +30,14 @@ fn run() -> Result<bool> {
     let opt = args::get_args().context("parse arguments")?;
     trace!("Options: {:#?}", opt);
 
-    let test_dirs = if let Some(recurse) = opt.recurse {
-        std::fs::read_dir(&recurse)
-            .with_context(|| format!("recurse into {:?}", recurse))?
-            .flat_map(|entry| entry.map(|entry| entry.path()))
-            .collect()
-    } else {
-        opt.tests
-    };
+    let mut test_dirs = opt.tests.clone();
+    for dir in opt.directory {
+        test_dirs.extend(
+            std::fs::read_dir(&dir)
+                .with_context(|| format!("recurse into {:?}", dir))?
+                .flat_map(|entry| entry.map(|entry| entry.path())),
+        )
+    }
 
     info!("Loading {} tests", test_dirs.len());
     trace!("Test directories: {:#?}", test_dirs);
