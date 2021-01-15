@@ -9,6 +9,7 @@ use crate::difference::FileNodeDiff;
 #[derive(Debug)]
 pub enum RootTestResult {
     Ok,
+    Ignored,
     Failed {
         stdout: TestFieldComparison<Vec<u8>, Vec<u8>>,
         stderr: TestFieldComparison<Vec<u8>, Vec<u8>>,
@@ -46,6 +47,7 @@ pub enum FileNode {
 pub struct Counts {
     ok: usize,
     failed: usize,
+    ignored: usize,
 }
 
 impl RootTestResult {
@@ -109,28 +111,29 @@ impl RootTestResult {
     }
 
     pub fn ok(&self) -> bool {
-        matches!(self, RootTestResult::Ok)
+        matches!(self, RootTestResult::Ok | RootTestResult::Ignored)
     }
 
     pub fn status(&self) -> crossterm::style::StyledContent<&'static str> {
-        if self.ok() {
-            "ok".green()
-        } else {
-            "FAILED".red()
+        match self {
+            RootTestResult::Ok => "ok".green(),
+            RootTestResult::Failed { .. } => "FAILED".red(),
+            RootTestResult::Ignored => "ignored".grey(),
         }
     }
 
     pub fn short_status(&self) -> crossterm::style::StyledContent<&'static str> {
-        if self.ok() {
-            ".".white()
-        } else {
-            "F".red()
+        match self {
+            RootTestResult::Ok => ".".white(),
+            RootTestResult::Failed { .. } => "F".red(),
+            RootTestResult::Ignored { .. } => "I".grey(),
         }
     }
 
     pub fn print_details(self) {
         match self {
             RootTestResult::Ok => panic!("printing details of ok result"),
+            RootTestResult::Ignored => panic!("printing details of ignored result"),
             RootTestResult::Failed {
                 stdout,
                 stderr,
@@ -198,7 +201,7 @@ impl std::fmt::Display for Counts {
         };
         write!(
             f,
-            "roottest result: {}. {} ok, {} failed.",
+            "roottest result: {}. {} ok, {} failed, and {} ignored.",
             result,
             self.ok.to_string().green(),
             if self.failed == 0 {
@@ -206,6 +209,7 @@ impl std::fmt::Display for Counts {
             } else {
                 self.failed.to_string().red()
             },
+            self.ignored.to_string().grey(),
         )
     }
 }
@@ -256,6 +260,7 @@ impl Counts {
     pub fn update(&mut self, result: &RootTestResult) {
         match result {
             RootTestResult::Ok => self.ok += 1,
+            RootTestResult::Ignored => self.ignored += 1,
             RootTestResult::Failed { .. } => self.failed += 1,
         }
     }

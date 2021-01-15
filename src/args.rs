@@ -23,6 +23,10 @@ pub(crate) struct Opt {
 
     /// An optional list of test folders
     pub tests: Vec<PathBuf>,
+
+    /// Include tests with ignore = true
+    #[structopt(short, long)]
+    pub include_ignored: bool,
 }
 
 pub(crate) fn get_args() -> anyhow::Result<Opt> {

@@ -64,7 +64,7 @@ fn run() -> Result<bool> {
         }
 
         let result = test
-            .run(opt.cleanup)
+            .run(opt.cleanup, opt.include_ignored)
             .with_context(|| format!("run test {}", test.name))?;
 
         if opt.quiet == 0 {

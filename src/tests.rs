@@ -11,6 +11,7 @@ pub struct RootTestParams {
     pub(crate) cd: PathBuf,
     pub(crate) run: String,
     pub(crate) expected_status: i32,
+    pub(crate) ignore: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -71,7 +72,12 @@ impl RootTest {
         })
     }
 
-    pub fn run(&self, cleanup: bool) -> Result<RootTestResult> {
+    pub fn run(&self, cleanup: bool, include_ignored: bool) -> Result<RootTestResult> {
+        if self.params.ignore.unwrap_or(false) && !include_ignored {
+            debug!("Test ignored and include_ignored=false");
+            return Ok(RootTestResult::Ignored);
+        }
+
         if log_enabled!(log::Level::Debug) {
             // newline after the 3 dots
             println!();
