@@ -39,6 +39,9 @@ fn run() -> Result<bool> {
         opt.tests
     };
 
+    info!("Loading {} tests", test_dirs.len());
+    trace!("Test directories: {:#?}", test_dirs);
+
     let mut tests = Vec::with_capacity(test_dirs.len());
     for test_dir in test_dirs {
         tests.push(
@@ -46,7 +49,6 @@ fn run() -> Result<bool> {
                 .with_context(|| format!("load test from {:?}", test_dir))?,
         );
     }
-    debug!("Finished loading tests");
     trace!("Tests: {:#?}", tests);
 
     println!("Running {} roottests\n", tests.len());

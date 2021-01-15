@@ -77,12 +77,12 @@ impl RootTest {
             println!();
         }
 
-        debug!("Cleaning up previous test run...",);
+        debug!("Cleaning up previous test run");
         let _ = std::fs::remove_dir_all(&self.root);
         let _ = std::fs::remove_file(&self.actual_stdout);
         let _ = std::fs::remove_file(&self.actual_stderr);
 
-        debug!("Copying {:?} to {:?}...", self.root_before, self.root);
+        debug!("Copying {:?} to {:?}", self.root_before, self.root);
         let cp_success = std::process::Command::new("cp")
             .arg("-r")
             .arg(&self.root_before)
@@ -116,12 +116,12 @@ impl RootTest {
                 .context("save actual stderr")?;
         }
 
-        debug!("Generating test results...");
+        debug!("Generating test results");
         let result = RootTestResult::new(self, process_output).context("generate test results")?;
         trace!("Result: {:#?}", result);
 
         if cleanup {
-            debug!("Cleaning up...");
+            debug!("Cleaning up");
             std::fs::remove_dir_all(&self.root).context("clean up temporary root directory")?;
         } else {
             debug!("Not cleaning up");
