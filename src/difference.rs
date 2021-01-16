@@ -350,48 +350,85 @@ impl FileNodeDiff {
             FileNodeDiff::Identical => unreachable!("printing identical node"),
             FileNodeDiff::Unexpected(node_type) => {
                 println!(
-                    "unexpected: actual {}, expected {}",
+                    "{}unexpected: actual {}, expected {}",
+                    spaces,
                     node_type.red(),
                     "nothing".green()
                 );
             }
             FileNodeDiff::Missing(node_type) => {
                 println!(
-                    "missing: actual {}, expected {}",
+                    "{}missing: actual {}, expected {}",
+                    spaces,
                     "nothing".red(),
                     node_type.green()
                 );
             }
             FileNodeDiff::DifferentType(actual, expected) => {
-                println!("type differs: {} != {}", actual.red(), expected.green())
-            }
-            FileNodeDiff::FileDiffers { contents } => {
                 println!(
-                    "contents differ ({}, {})",
-                    "actual".red(),
-                    "expected".green()
-                );
-                match contents {
-                    FileDiff::Diff(diff) => print_diff(diff, 3),
-                    FileDiff::Binary => {
-                        println!("  Either actual file or expected file is invalid UTF-8");
-                        println!("  Run again with --no-cleanup and check the contents of root/ and root_after/");
+                    "{}type differs: {} != {}",
+                    spaces,
+                    actual.red(),
+                    expected.green()
+                )
+            }
+            FileNodeDiff::FileDiffers {
+                contents,
+                permissions,
+            } => {
+                if let Some(permissions) = permissions {
+                    println!("{}permissions differ", spaces);
+                    todo!();
+                }
+
+                if let Some(contents) = contents {
+                    println!(
+                        "{}contents differ ({}, {})",
+                        spaces,
+                        "actual".red(),
+                        "expected".green()
+                    );
+                    match contents {
+                        FileDiff::Diff(diff) => print_diff(diff, 3),
+                        FileDiff::Binary => {
+                            println!("  Either actual file or expected file is invalid UTF-8");
+                            println!("  Run again with --no-cleanup and check the contents of root/ and root_after/");
+                        }
                     }
                 }
             }
-            FileNodeDiff::DirectoryDiffers { children } => {
-                println!();
-                for (child, diff) in children {
-                    print!("{}{}: ", spaces, child.to_string_lossy().blue());
-                    diff.print(indentation + 2);
+            FileNodeDiff::DirectoryDiffers {
+                children,
+                permissions,
+            } => {
+                if let Some(permissions) = permissions {
+                    println!("{}permissions differ", spaces);
+                    todo!();
+                }
+                if let Some(children) = children {
+                    for (child, diff) in children {
+                        println!("{}{}:", spaces, child.to_string_lossy().blue());
+                        diff.print(indentation + 2);
+                    }
                 }
             }
-            FileNodeDiff::SymbolicLinkDiffers { target } => {
-                println!(
-                    "symbolic link's target differs: actual {}, expected {}",
-                    target.0.to_string_lossy().red(),
-                    target.1.to_string_lossy().green()
-                );
+            FileNodeDiff::SymbolicLinkDiffers {
+                target,
+                permissions,
+            } => {
+                if let Some(permissions) = permissions {
+                    println!("{}permissions differ", spaces);
+                    todo!();
+                }
+
+                if let Some(target) = target {
+                    println!(
+                        "{}symbolic link's target differs: actual {}, expected {}",
+                        spaces,
+                        target.0.to_string_lossy().red(),
+                        target.1.to_string_lossy().green()
+                    );
+                }
             }
         }
     }
