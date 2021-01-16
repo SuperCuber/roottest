@@ -377,8 +377,8 @@ impl FileNodeDiff {
                 permissions,
             } => {
                 if let Some(permissions) = permissions {
-                    println!("{}permissions differ", spaces);
-                    todo!();
+                    println!("{}permissions differ:", spaces);
+                    permissions.print(indentation + 2);
                 }
 
                 if let Some(contents) = contents {
@@ -402,8 +402,8 @@ impl FileNodeDiff {
                 permissions,
             } => {
                 if let Some(permissions) = permissions {
-                    println!("{}permissions differ", spaces);
-                    todo!();
+                    println!("{}permissions differ:", spaces);
+                    permissions.print(indentation + 2);
                 }
                 if let Some(children) = children {
                     for (child, diff) in children {
@@ -417,8 +417,8 @@ impl FileNodeDiff {
                 permissions,
             } => {
                 if let Some(permissions) = permissions {
-                    println!("{}permissions differ", spaces);
-                    todo!();
+                    println!("{}permissions differ:", spaces);
+                    permissions.print(indentation + 2);
                 }
 
                 if let Some(target) = target {
@@ -453,5 +453,33 @@ impl PermissionsDiff {
         };
 
         PermissionsDiff { mode, uid, gid }
+    }
+
+    fn print(&self, indentation: usize) {
+        let spaces: String = (0..indentation).map(|_| ' ').collect();
+        if let TestFieldComparison::Differs(actual, expected) = self.mode {
+            println!(
+                "{}mode: actual {}, expected {}",
+                spaces,
+                format!("{:o}", actual & 0o777).red(),
+                format!("{:o}", expected & 0o777).green()
+            );
+        }
+        if let TestFieldComparison::Differs(actual, expected) = self.uid {
+            println!(
+                "{}uid: actual {}, expected {}",
+                spaces,
+                actual.to_string().red(),
+                expected.to_string().green()
+            );
+        }
+        if let TestFieldComparison::Differs(actual, expected) = self.gid {
+            println!(
+                "{}gid: actual {}, expected {}",
+                spaces,
+                actual.to_string().red(),
+                expected.to_string().green()
+            );
+        }
     }
 }
