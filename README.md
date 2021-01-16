@@ -30,4 +30,4 @@ See `cargo-roottest`
 - Run your program using `/program` in Roottest.toml
 
 ## Dependencies
-Roottest is only supported on Linux, and depends on the `fakechroot` package. Check your distribution for installation.
+Roottest is only supported on Linux, and depends on the `fakechroot` and `rsync` programs. Check your distribution for installation.

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 
 use crate::results::RootTestResult;
 
@@ -90,20 +91,40 @@ impl RootTest {
         let _ = std::fs::remove_file(&self.actual_stderr);
 
         debug!("Copying {:?} to {:?}", self.root_before, self.root);
-        let cp_success = std::process::Command::new("cp")
-            .arg("-r")
-            .arg(&self.root_before)
+
+        let mut root_before = self.root_before.as_os_str().to_owned();
+        root_before.push("/");
+
+        let rsync_success = std::process::Command::new("rsync")
+            .arg("-a")
+            .arg("--super")
+            .arg(&root_before)
             .arg(&self.root)
+            .stderr(Stdio::null())
             .output()
-            .context("run cp -r self.root_before self.root")?
+            .context("run rsync -a self.root_before self.root")?
             .status
             .success();
-        anyhow::ensure!(
-            cp_success,
-            "failed to run cp -r {:?} {:?}",
-            self.root_before,
-            self.root
-        );
+
+        if !rsync_success {
+            if log_enabled!(log::Level::Warn) {
+                println!();
+            }
+            warn!("Root permissions needed to copy files not owned by current user");
+
+            let rsync_success = std::process::Command::new("sudo")
+                .arg("rsync")
+                .arg("-a")
+                .arg(&root_before)
+                .arg(&self.root)
+                .stderr(Stdio::null())
+                .output()
+                .context("run rsync -a self.root_before self.root")?
+                .status
+                .success();
+
+            anyhow::ensure!(rsync_success, "sudo rsync failed");
+        }
 
         debug!("Launching chrooted process");
         let process_output = std::process::Command::new("fakechroot")
