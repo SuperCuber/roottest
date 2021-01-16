@@ -39,7 +39,8 @@ pub(crate) fn get_args() -> anyhow::Result<Opt> {
 pub(crate) fn init_logger(opt: &Opt) {
     TermLogger::init(
         match opt.verbosity {
-            0 => LevelFilter::Warn,
+            0 if opt.quiet == 0 => LevelFilter::Warn,
+            0 => LevelFilter::Error,
             1 => LevelFilter::Info,
             2 => LevelFilter::Debug,
             3 => LevelFilter::Trace,
