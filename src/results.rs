@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -28,19 +29,23 @@ pub enum TestFieldComparison<L, R> {
 pub enum FileNode {
     File {
         contents: Vec<u8>,
-        // something like
-        // metadata: (),
-        // permissions: (),
-        // uid: (),
-        // gid: (),
+        permissions: Permissions,
     },
     Directory {
         children: BTreeMap<PathBuf, FileNode>,
-        // metadata: (),
+        permissions: Permissions,
     },
     SymbolicLink {
         target: PathBuf,
+        permissions: Permissions,
     },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Permissions {
+    pub mode: u32,
+    pub uid: u32,
+    pub gid: u32,
 }
 
 #[derive(Debug, Default)]
@@ -218,7 +223,10 @@ impl FileNode {
     fn load_from(path: impl AsRef<Path>) -> Result<FileNode> {
         let path = path.as_ref();
         if let Ok(target) = path.read_link() {
-            Ok(FileNode::SymbolicLink { target })
+            Ok(FileNode::SymbolicLink {
+                target,
+                permissions: Permissions::load_from(path).context("load path's permissions")?,
+            })
         } else if path.is_dir() {
             let children: Result<BTreeMap<PathBuf, FileNode>> = path
                 .read_dir()
@@ -232,11 +240,14 @@ impl FileNode {
                 .collect();
             Ok(FileNode::Directory {
                 children: children?,
+                permissions: Permissions::load_from(path).context("load path's permissions")?,
             })
+        // TODO: is there a bug hiding here if file doesn't exist?
         } else {
             Ok(FileNode::File {
                 contents: std::fs::read(path)
                     .with_context(|| format!("read contents of {:?}", path))?,
+                permissions: Permissions::load_from(path).context("load path's permissions")?,
             })
         }
     }
@@ -247,6 +258,18 @@ impl FileNode {
             FileNode::Directory { .. } => "directory",
             FileNode::SymbolicLink { .. } => "symbolic link",
         }
+    }
+}
+
+impl Permissions {
+    fn load_from(path: impl AsRef<Path>) -> Result<Permissions> {
+        let path = path.as_ref();
+        let metadata = path.symlink_metadata().context("get metadata")?;
+        Ok(Permissions {
+            mode: metadata.mode(),
+            uid: metadata.uid(),
+            gid: metadata.gid(),
+        })
     }
 }
 

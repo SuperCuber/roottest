@@ -4,7 +4,7 @@ use std::cmp::{max, min};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
-use crate::results::FileNode;
+use crate::results::{FileNode, Permissions, TestFieldComparison};
 
 pub type Diff = Vec<diff::Result<String>>;
 pub type HunkDiff = Vec<(usize, usize, Diff)>;
@@ -16,13 +16,16 @@ pub enum FileNodeDiff {
     Missing(&'static str),
     DifferentType(&'static str, &'static str),
     FileDiffers {
-        contents: FileDiff,
+        contents: Option<FileDiff>,
+        permissions: Option<PermissionsDiff>,
     },
     DirectoryDiffers {
-        children: BTreeMap<PathBuf, FileNodeDiff>,
+        children: Option<BTreeMap<PathBuf, FileNodeDiff>>,
+        permissions: Option<PermissionsDiff>,
     },
     SymbolicLinkDiffers {
-        target: (PathBuf, PathBuf),
+        target: Option<(PathBuf, PathBuf)>,
+        permissions: Option<PermissionsDiff>,
     },
 }
 
@@ -30,6 +33,13 @@ pub enum FileNodeDiff {
 pub enum FileDiff {
     Diff(Diff),
     Binary,
+}
+
+#[derive(Debug)]
+pub struct PermissionsDiff {
+    mode: TestFieldComparison<u32, u32>,
+    uid: TestFieldComparison<u32, u32>,
+    gid: TestFieldComparison<u32, u32>,
 }
 
 pub fn to_owned_diff_result(from: diff::Result<&str>) -> diff::Result<String> {
@@ -178,13 +188,15 @@ impl FileNodeDiff {
             (
                 FileNode::File {
                     contents: actual_contents,
+                    permissions: actual_permissions,
                 },
                 FileNode::File {
                     contents: expected_contents,
+                    permissions: expected_permissions,
                 },
             ) => {
-                if actual_contents == expected_contents {
-                    FileNodeDiff::Identical
+                let contents = if actual_contents == expected_contents {
+                    None
                 } else {
                     match (
                         String::from_utf8(actual_contents),
@@ -197,83 +209,133 @@ impl FileNodeDiff {
                                 .collect();
 
                             assert!(diff_nonempty(&diff));
-                            FileNodeDiff::FileDiffers {
-                                contents: FileDiff::Diff(diff),
-                            }
+                            Some(FileDiff::Diff(diff))
                         }
-                        (_, _) => FileNodeDiff::FileDiffers {
-                            contents: FileDiff::Binary,
-                        },
+                        (_, _) => Some(FileDiff::Binary),
                     }
+                };
+
+                let permissions = if actual_permissions == expected_permissions {
+                    None
+                } else {
+                    Some(PermissionsDiff::from_permissions(
+                        actual_permissions,
+                        expected_permissions,
+                    ))
+                };
+
+                match (contents, permissions) {
+                    (None, None) => FileNodeDiff::Identical,
+                    (contents, permissions) => FileNodeDiff::FileDiffers {
+                        contents,
+                        permissions,
+                    },
                 }
             }
             (
                 FileNode::SymbolicLink {
                     target: actual_target,
+                    permissions: actual_permissions,
                 },
                 FileNode::SymbolicLink {
                     target: expected_target,
+                    permissions: expected_permissions,
                 },
             ) => {
-                if actual_target == expected_target {
-                    FileNodeDiff::Identical
+                let target = if actual_target == expected_target {
+                    None
                 } else {
-                    FileNodeDiff::SymbolicLinkDiffers {
-                        target: (actual_target, expected_target),
-                    }
+                    Some((actual_target, expected_target))
+                };
+
+                let permissions = if actual_permissions == expected_permissions {
+                    None
+                } else {
+                    Some(PermissionsDiff::from_permissions(
+                        actual_permissions,
+                        expected_permissions,
+                    ))
+                };
+
+                match (target, permissions) {
+                    (None, None) => FileNodeDiff::Identical,
+                    (target, permissions) => FileNodeDiff::SymbolicLinkDiffers {
+                        target,
+                        permissions,
+                    },
                 }
             }
             (
                 FileNode::Directory {
                     children: mut actual_children,
+                    permissions: actual_permissions,
                 },
                 FileNode::Directory {
                     children: mut expected_children,
+                    permissions: expected_permissions,
                 },
             ) => {
-                let mut different_children = BTreeMap::new();
+                let children = {
+                    let mut different_children = BTreeMap::new();
 
-                let compared_children = actual_children
-                    .keys()
-                    .collect::<BTreeSet<_>>()
-                    .intersection(&expected_children.keys().collect())
-                    .cloned()
-                    .cloned()
-                    .collect::<BTreeSet<PathBuf>>();
+                    let compared_children = actual_children
+                        .keys()
+                        .collect::<BTreeSet<_>>()
+                        .intersection(&expected_children.keys().collect())
+                        .cloned()
+                        .cloned()
+                        .collect::<BTreeSet<PathBuf>>();
 
-                for compared_child in compared_children {
-                    let actual_child = actual_children.remove(compared_child.as_path()).unwrap();
-                    let expected_child =
-                        expected_children.remove(compared_child.as_path()).unwrap();
+                    for compared_child in compared_children {
+                        let actual_child =
+                            actual_children.remove(compared_child.as_path()).unwrap();
+                        let expected_child =
+                            expected_children.remove(compared_child.as_path()).unwrap();
 
-                    match FileNodeDiff::from_file_nodes(actual_child, expected_child) {
-                        FileNodeDiff::Identical => {}
-                        diff => {
-                            different_children.insert(compared_child, diff);
+                        match FileNodeDiff::from_file_nodes(actual_child, expected_child) {
+                            FileNodeDiff::Identical => {}
+                            diff => {
+                                different_children.insert(compared_child, diff);
+                            }
                         }
                     }
-                }
 
-                for (missing_child, missing_child_value) in expected_children {
-                    different_children.insert(
-                        missing_child,
-                        FileNodeDiff::Missing(missing_child_value.node_type()),
-                    );
-                }
-
-                for (unexpected_child, unexpected_child_value) in actual_children {
-                    different_children.insert(
-                        unexpected_child,
-                        FileNodeDiff::Unexpected(unexpected_child_value.node_type()),
-                    );
-                }
-
-                if different_children.is_empty() {
-                    FileNodeDiff::Identical
-                } else {
-                    FileNodeDiff::DirectoryDiffers {
-                        children: different_children,
+                    for (missing_child, missing_child_value) in expected_children {
+                        different_children.insert(
+                            missing_child,
+                            FileNodeDiff::Missing(missing_child_value.node_type()),
+                        );
                     }
+
+                    for (unexpected_child, unexpected_child_value) in actual_children {
+                        different_children.insert(
+                            unexpected_child,
+                            FileNodeDiff::Unexpected(unexpected_child_value.node_type()),
+                        );
+                    }
+
+                    if different_children.is_empty() {
+                        None
+                    } else {
+                        Some(different_children)
+                    }
+                };
+
+                let permissions = if actual_permissions == expected_permissions {
+                    None
+                } else {
+                    Some(PermissionsDiff::from_permissions(
+                        actual_permissions,
+                        expected_permissions,
+                    ))
+                };
+
+                match (children, permissions) {
+                    (None, None) => FileNodeDiff::Identical,
+                    (children, permissions) => FileNodeDiff::DirectoryDiffers {
+                        children,
+                        permissions,
+                    },
                 }
             }
             (actual, expected) => {
@@ -332,5 +394,27 @@ impl FileNodeDiff {
                 );
             }
         }
+    }
+}
+
+impl PermissionsDiff {
+    fn from_permissions(actual: Permissions, expected: Permissions) -> Self {
+        let mode = if actual.mode == expected.mode {
+            TestFieldComparison::Identical
+        } else {
+            TestFieldComparison::Differs(actual.mode, expected.mode)
+        };
+        let uid = if actual.uid == expected.uid {
+            TestFieldComparison::Identical
+        } else {
+            TestFieldComparison::Differs(actual.uid, expected.uid)
+        };
+        let gid = if actual.gid == expected.gid {
+            TestFieldComparison::Identical
+        } else {
+            TestFieldComparison::Differs(actual.gid, expected.gid)
+        };
+
+        PermissionsDiff { mode, uid, gid }
     }
 }
